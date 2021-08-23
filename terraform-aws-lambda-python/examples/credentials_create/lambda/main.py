@@ -8,14 +8,15 @@ import sys
 import json
 import logging
 from pprint import pformat
-import boto3
-
 # Hack to use dependencies from lib directory
 BASE_PATH = os.path.dirname(__file__)
 sys.path.append(BASE_PATH + "/lib")
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
+
+import boto3
+from flatten_dict import flatten, unflatten
 
 def response(status=200, headers=None, body=''):
     '''
@@ -46,42 +47,87 @@ def format_data_dynamodb(data):
             new_dict[k]= {"S" :v} 
     return new_dict
 
+def clean_dynamodb_item(data):
+    clean_dict={}
+    for k, values in data.items():
+        if isinstance(values,dict):
+            for key, values2 in values.items():
+                if key is 'S':
+                    clean_dict[k] = values2
+                elif key is 'L':
+                    clean_dict[k] = [list(el.values())[0] for el in values2]
+                elif key is 'M':
+                    clean_dict[k]={}
+                    for new_key, vals in values2.items():
+                        clean_dict[k][new_key]= list(vals.values())[0]
+    return clean_dict
+
+def update(key, fields, value, dynamodb):    
+    request = dynamodb.get_item(TableName="DID_POC", 
+                                Key={'hashed_key' : { 'S' : key}})
+    request_data = flatten(clean_dynamodb_item(request['Item']))
+    request_data[fields] = value
+    request_data = unflatten(request_data)
+    item_data = format_data_dynamodb(request_data)
+    done = dynamodb.put_item(TableName="DID_POC", 
+                                Item=item_data)
+
+
 def lambda_handler(event, context):
     '''
-    This function is called on HTTP request.
-    It logs the request and an execution context. Then it returns body of the request.
-    payload = {'hashed_key': 'vfeajv12yg32kvvgha', 
-    'did_to_link': 'afjk312kj4jkkj',
-    'status':'True'
-    }
+    This function creates a credentials for two dids
+
+credential = {
+'issuer_to_hashed_key': 'afjk312kj4jkkj',
+'issuer_to_public_key' : '---public key issuer---- ',
+'issuer_to_type': 'TITLE_ORG',
+'issued_to_hashed_key': 'vfeajv12yg32kvvgha', 
+'issued_to_public_key' : '---public key issued---- ',
+'issued_to_type': 'PERSON',
+'signed' : 'False',
+}
+print(requests.post('https://h5ctmemjw0.execute-api.us-east-1.amazonaws.com/dev/credentials_create',json.dumps(credential)).content)
 
     '''
     LOGGER.info("%s", pformat({"Context" : vars(context), "Request": event}))
-    data = json.loads(event['body'])
-    hashed_key = data['hashed_key']
-    did_to_link = data['did_to_link']
-    status = data['status'] #True or False (string)
     dynamodb = boto3.client('dynamodb')
+    
+    data = json.loads(event['body'])
+    data['hashed_key'] = data['issuer_to_hashed_key']+' to '+data['issued_to_hashed_key']
+    dynamo_data = format_data_dynamodb(data)
+    
+    
+    table = dynamodb.put_item(TableName="DID_POC", 
+                                Item=dynamo_data)
 
-    field_to_update = 'linked_dids'
+    req = dynamodb.get_item(TableName="DID_POC", 
+                                Key={'hashed_key' : { 'S' : data['hashed_key']}})
+                                
+    print(req['Item'])
+    field_to_update ='signed_credentials'
 
-    req1 = dynamodb.update_item(TableName="DID_POC", 
-                            Key={'hashed_key' : { 'S' : hashed_key }},
-                            UpdateExpression=f"set {field_to_update}.{did_to_link}=:r",
-                            ExpressionAttributeValues={
-            ":r": {"S":status}
-        })
-    #TODO: CHECK IF DID TO LINK EXISTS
-    req2 = dynamodb.update_item(TableName="DID_POC", 
-                            Key={'hashed_key' : { 'S' : did_to_link }},
-                            UpdateExpression=f"set {field_to_update}.{hashed_key}=:r",
-                            ExpressionAttributeValues={
-            ":r": {"S":status}
-    })
-    print(req1)
-    print(req2)
+    update(data['issuer_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
+    # req_issuer = dynamodb.get_item(TableName="DID_POC", 
+    #                             Key={'hashed_key' : { 'S' :  data['issuer_to_hashed_key']}})
+    # req_issuer['Item']['signed_credentials']['M'][data['hashed_key']] = {'S':'False'}
+    # print(req_issuer)
+    # dynamodb.put_item(TableName="DID_POC", 
+    #                         Item=req_issuer['Item'])
+
+
+    # req_issued = dynamodb.get_item(TableName="DID_POC", 
+    #                             Key={'hashed_key' : { 'S' :  data['issued_to_hashed_key']}})
+    # req_issued['Item']['signed_credentials']['M'][data['hashed_key']] = {'S':'False'}
+    # print(req_issued)
+    # dynamodb.put_item(TableName="DID_POC", 
+    #                         Item=req_issued['Item'])
+    update(data['issued_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
+
+    print('Assigned Credentials to both.')
+
+    #TODO: SEND SNS MESSAGE TO NOTIFY APP
    
-    return response(status=200, body='Successfuly requested wallets.')
+    return response(status=200, body='both done')
 
 
 if __name__ == '__main__':

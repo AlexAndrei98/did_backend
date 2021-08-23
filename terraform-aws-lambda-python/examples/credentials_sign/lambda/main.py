@@ -8,7 +8,7 @@ import sys
 import json
 import logging
 from pprint import pformat
-import boto3
+
 
 # Hack to use dependencies from lib directory
 BASE_PATH = os.path.dirname(__file__)
@@ -16,6 +16,9 @@ sys.path.append(BASE_PATH + "/lib")
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
+
+import boto3
+from flatten_dict import flatten, unflatten
 
 def response(status=200, headers=None, body=''):
     '''
@@ -46,42 +49,58 @@ def format_data_dynamodb(data):
             new_dict[k]= {"S" :v} 
     return new_dict
 
+def clean_dynamodb_item(data):
+    clean_dict={}
+    for k, values in data.items():
+        if isinstance(values,dict):
+            for key, values2 in values.items():
+                if key is 'S':
+                    clean_dict[k] = values2
+                elif key is 'L':
+                    clean_dict[k] = [list(el.values())[0] for el in values2]
+                elif key is 'M':
+                    clean_dict[k]={}
+                    for new_key, vals in values2.items():
+                        clean_dict[k][new_key]= list(vals.values())[0]
+    return clean_dict
+
+def update(key, fields, value, dynamodb):    
+    request = dynamodb.get_item(TableName="DID_POC", 
+                                Key={'hashed_key' : { 'S' : key}})
+    request_data = flatten(clean_dynamodb_item(request['Item']))
+    request_data[fields] = value
+    request_data = unflatten(request_data)
+    item_data = format_data_dynamodb(request_data)
+    dynamodb.put_item(TableName="DID_POC", 
+                                Item=item_data)
+
 def lambda_handler(event, context):
     '''
     This function is called on HTTP request.
     It logs the request and an execution context. Then it returns body of the request.
-    payload = {'hashed_key': 'vfeajv12yg32kvvgha', 
-    'did_to_link': 'afjk312kj4jkkj',
-    'status':'True'
+payload_sign = {
+    'issuer_to_hashed_key': 'afjk312kj4jkkj',
+    'issued_to_hashed_key': 'vfeajv12yg32kvvgha'
     }
-
+payload_sign = {
+    'hashed_key': 'afjk312kj4jkkj to vfeajv12yg32kvvgha'
+    }
     '''
     LOGGER.info("%s", pformat({"Context" : vars(context), "Request": event}))
     data = json.loads(event['body'])
-    hashed_key = data['hashed_key']
-    did_to_link = data['did_to_link']
-    status = data['status'] #True or False (string)
+    issuer_key_hash = data['issuer_to_hashed_key']
+    issued_key_hash = data['issued_to_hashed_key']
+    cred_key = issuer_key_hash+' to '+issued_key_hash
     dynamodb = boto3.client('dynamodb')
 
-    field_to_update = 'linked_dids'
+    update(issuer_key_hash,('signed_credentials',cred_key),'True',dynamodb)
 
-    req1 = dynamodb.update_item(TableName="DID_POC", 
-                            Key={'hashed_key' : { 'S' : hashed_key }},
-                            UpdateExpression=f"set {field_to_update}.{did_to_link}=:r",
-                            ExpressionAttributeValues={
-            ":r": {"S":status}
-        })
-    #TODO: CHECK IF DID TO LINK EXISTS
-    req2 = dynamodb.update_item(TableName="DID_POC", 
-                            Key={'hashed_key' : { 'S' : did_to_link }},
-                            UpdateExpression=f"set {field_to_update}.{hashed_key}=:r",
-                            ExpressionAttributeValues={
-            ":r": {"S":status}
-    })
-    print(req1)
-    print(req2)
-   
-    return response(status=200, body='Successfuly requested wallets.')
+    update(issued_key_hash,('signed_credentials',cred_key),'True',dynamodb)
+
+
+    update(cred_key,('signed',),'True',dynamodb)
+
+    return response(status=200, body=f'Successfuly signed credential {cred_key}.')
 
 
 if __name__ == '__main__':

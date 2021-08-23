@@ -60,25 +60,27 @@ def lambda_handler(event, context):
     linked_dids: [String]
     credentials: [String]
     signed_credentials: [String]
+import requests, json
+data_new1 = {'hashed_key': 'afjk312kj4jkkj', 
+    'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
+    'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
+    'name': 'DOMA LLC', 
+    'type': 'TITLE_ORG', 
+    'seed_phrase':['title',' is boring'], 
+    'signed_credentials' :{},
+    'linked_dids': {}}
 
-    data_new = {'hashed_key': 'afjk312kj4jkkj', 
-            'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
-            'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
-            'name': 'DOMA LLC', 
-            'type': 'TITLE_ORG', 
-            'seed_phrase':['title',' is boring'], 
-            'credentials' :[],
-            'signed_credentials' :[],
-            'linked_dids': {}}
-    data_new = {'hashed_key': 'vfeajv12yg32kvvgha', 
-            'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
-            'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
-            'name': 'SAINT LOUIS COUNTY LLC', 
-            'type': 'PERSON', 
-            'seed_phrase':['alex',' is awesome'], 
-            'credentials' :[],
-            'signed_credentials' :[],
-            'linked_dids': {}}
+data_new = {'hashed_key': 'vfeajv12yg32kvvgha', 
+    'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
+    'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
+    'name': 'SAINT LOUIS COUNTY LLC', 
+    'type': 'PERSON', 
+    'seed_phrase':['alex',' is awesome'], 
+    'signed_credentials' :{},
+    'linked_dids': {}}
+url_create= 'https://4njcgx31b5.execute-api.us-east-1.amazonaws.com/dev/did_create'
+print(requests.post(url_create,json.dumps(data_new)).content)
+print(requests.post(url_create,json.dumps(data_new1)).content)
 
     '''
     LOGGER.info("%s", pformat({"Context" : vars(context), "Request": event}))
@@ -114,7 +116,6 @@ def lambda_handler(event, context):
                                 
     print(req['Item'])
     return response(status=200, body=req['Item'])
-
 
 if __name__ == '__main__':
     # Do nothing if executed as a script

@@ -1,2 +1,2 @@
-numpy
+flatten-dict
 boto3
