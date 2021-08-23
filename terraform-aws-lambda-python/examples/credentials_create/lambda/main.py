@@ -107,20 +107,6 @@ print(requests.post('https://h5ctmemjw0.execute-api.us-east-1.amazonaws.com/dev/
     field_to_update ='signed_credentials'
 
     update(data['issuer_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
-    # req_issuer = dynamodb.get_item(TableName="DID_POC", 
-    #                             Key={'hashed_key' : { 'S' :  data['issuer_to_hashed_key']}})
-    # req_issuer['Item']['signed_credentials']['M'][data['hashed_key']] = {'S':'False'}
-    # print(req_issuer)
-    # dynamodb.put_item(TableName="DID_POC", 
-    #                         Item=req_issuer['Item'])
-
-
-    # req_issued = dynamodb.get_item(TableName="DID_POC", 
-    #                             Key={'hashed_key' : { 'S' :  data['issued_to_hashed_key']}})
-    # req_issued['Item']['signed_credentials']['M'][data['hashed_key']] = {'S':'False'}
-    # print(req_issued)
-    # dynamodb.put_item(TableName="DID_POC", 
-    #                         Item=req_issued['Item'])
     update(data['issued_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
 
     print('Assigned Credentials to both.')
