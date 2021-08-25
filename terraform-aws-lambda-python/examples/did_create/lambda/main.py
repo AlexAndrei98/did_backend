@@ -8,7 +8,6 @@ import sys
 import json
 import logging
 from pprint import pformat
-import boto3
 
 # Hack to use dependencies from lib directory
 BASE_PATH = os.path.dirname(__file__)
@@ -16,6 +15,10 @@ sys.path.append(BASE_PATH + "/lib")
 
 LOGGER = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
+
+import boto3
+from flatten_dict import flatten, unflatten
+
 
 def response(status=200, headers=None, body=''):
     '''
@@ -25,13 +28,34 @@ def response(status=200, headers=None, body=''):
         return {'statusCode': status}
 
     if headers is None:
-        headers = {'Content-Type': 'application/json'}
+        headers = {
+            "Access-Control-Allow-Headers":  "Content-Type",
+            "Access-Control-Allow-Origin" : "*",
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET'
+
+        }
 
     return {
         'statusCode': status,
         'headers': headers,
         'body': json.dumps(body)
     }
+
+
+def clean_dynamodb_item(data):
+    clean_dict={}
+    for k, values in data.items():
+        if isinstance(values,dict):
+            for key, values2 in values.items():
+                if key is 'S':
+                    clean_dict[k] = values2
+                elif key is 'L':
+                    clean_dict[k] = [list(el.values())[0] for el in values2]
+                elif key is 'M':
+                    clean_dict[k]={}
+                    for new_key, vals in values2.items():
+                        clean_dict[k][new_key]= list(vals.values())[0]
+    return clean_dict
 
 def format_data_dynamodb(data):
     new_dict={}
@@ -61,14 +85,17 @@ def lambda_handler(event, context):
     credentials: [String]
     signed_credentials: [String]
 import requests, json
-data_new1 = {'hashed_key': 'afjk312kj4jkkj', 
+data_new1 = {
+    'hashed_key': 'afjk312kj4jkkj', 
     'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
     'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
     'name': 'DOMA LLC', 
     'type': 'TITLE_ORG', 
     'seed_phrase':['title',' is boring'], 
     'signed_credentials' :{},
-    'linked_dids': {}}
+    'linked_dids': {}
+    }
+
 
 data_new = {'hashed_key': 'vfeajv12yg32kvvgha', 
     'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
@@ -78,7 +105,7 @@ data_new = {'hashed_key': 'vfeajv12yg32kvvgha',
     'seed_phrase':['alex',' is awesome'], 
     'signed_credentials' :{},
     'linked_dids': {}}
-url_create= 'https://4njcgx31b5.execute-api.us-east-1.amazonaws.com/dev/did_create'
+url_create= 'https://rfl2i2ty4f.execute-api.us-east-1.amazonaws.com/dev/did_create'
 print(requests.post(url_create,json.dumps(data_new)).content)
 print(requests.post(url_create,json.dumps(data_new1)).content)
 
@@ -114,8 +141,8 @@ print(requests.post(url_create,json.dumps(data_new1)).content)
     req = dynamodb.get_item(TableName="DID_POC", 
                                 Key={'hashed_key' : { 'S' : dynamo_data['hashed_key']['S']}})
                                 
-    print(req['Item'])
-    return response(status=200, body=req['Item'])
+    resp = clean_dynamodb_item(req['Item'])
+    return response(status=200, body=resp)
 
 if __name__ == '__main__':
     # Do nothing if executed as a script
