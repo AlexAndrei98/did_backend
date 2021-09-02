@@ -93,7 +93,8 @@ print(requests.post('https://h5ctmemjw0.execute-api.us-east-1.amazonaws.com/dev/
     dynamodb = boto3.client('dynamodb')
     
     data = json.loads(event['body'])
-    data['hashed_key'] = data['issuer_to_hashed_key']+' to '+data['issued_to_hashed_key']
+    data['hashed_key'] = data['issuer_to_hashed_key']+' to '+data['issued_to_hashed_key']+data['issued_date']
+    # signed = data['signed']
     dynamo_data = format_data_dynamodb(data)
     
     

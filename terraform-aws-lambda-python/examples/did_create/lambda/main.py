@@ -80,7 +80,7 @@ def lambda_handler(event, context):
     private Key: String,
     seed_phrase: String,
     name: String,
-    type: String,
+    entityType: String,
     linked_dids: [String]
     credentials: [String]
     signed_credentials: [String]
@@ -90,7 +90,7 @@ data_new1 = {
     'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
     'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
     'name': 'DOMA LLC', 
-    'type': 'TITLE_ORG', 
+    'entityType': 'TITLE_ORG', 
     'seed_phrase':['title',' is boring'], 
     'signed_credentials' :{},
     'linked_dids': {}
@@ -101,7 +101,7 @@ data_new = {'hashed_key': 'vfeajv12yg32kvvgha',
     'public_key': '--BEGIN PUBLIC KEY ----- 324nk6jk4n6k453yh34b5hj', 
     'private_key': '--BEGIN PRIVATE KEY ----- nvjks34ktn4j2tn4h2baa', 
     'name': 'SAINT LOUIS COUNTY LLC', 
-    'type': 'PERSON', 
+    'entityType': 'PERSON', 
     'seed_phrase':['alex',' is awesome'], 
     'signed_credentials' :{},
     'linked_dids': {}}
@@ -118,8 +118,9 @@ print(requests.post(url_create,json.dumps(data_new1)).content)
     'private_key',
     'seed_phrase',
     'name',
-    'type']
+    'entityType']
     print(sorted(keys_to_check)==sorted(list(data.keys())))
+    print(dynamo_data)
     dynamodb = boto3.client('dynamodb')
 
     # mock_data = {

@@ -81,6 +81,7 @@ def lambda_handler(event, context):
 payload_sign = {
     'issuer_to_hashed_key': 'afjk312kj4jkkj',
     'issued_to_hashed_key': 'vfeajv12yg32kvvgha'
+    'issued_date':'Somedate'
     }
 payload_sign = {
     'hashed_key': 'afjk312kj4jkkj to vfeajv12yg32kvvgha'
@@ -90,7 +91,9 @@ payload_sign = {
     data = json.loads(event['body'])
     issuer_key_hash = data['issuer_to_hashed_key']
     issued_key_hash = data['issued_to_hashed_key']
-    cred_key = issuer_key_hash+' to '+issued_key_hash
+    date = data['issued_date']
+
+    cred_key = issuer_key_hash+' to '+issued_key_hash+date
     dynamodb = boto3.client('dynamodb')
 
     update(issuer_key_hash,('signed_credentials',cred_key),'True',dynamodb)
@@ -100,7 +103,7 @@ payload_sign = {
 
     update(cred_key,('signed',),'True',dynamodb)
 
-    return response(status=200, body=f'Successfuly signed credential {cred_key}.')
+    return response(status=200, body={'success':f'Successfuly signed credential {cred_key}.'})
 
 
 if __name__ == '__main__':
