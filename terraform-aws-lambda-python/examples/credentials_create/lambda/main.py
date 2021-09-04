@@ -72,6 +72,24 @@ def update(key, fields, value, dynamodb):
     done = dynamodb.put_item(TableName="DID_POC", 
                                 Item=item_data)
 
+def save_to_main_table(cred_id,dynamodb):
+    request = dynamodb.get_item(TableName="DID_POC", 
+                                    Key={'hashed_key' : { 'S' : 'all_credentials'}})
+    if (request.get('Item') is None):
+        print("FIRST ALL CREDS")
+        request_data = {
+            'hashed_key': 'all_credentials',
+            'all_cred_ids': [cred_id]
+        }
+    else:
+        request_data = clean_dynamodb_item(request['Item'])
+        print('exisiting creds', request_data)
+        request_data['all_cred_ids'].extend([cred_id]) 
+
+    item_data = format_data_dynamodb(request_data)
+    print('all creds data',item_data)
+    done = dynamodb.put_item(TableName="DID_POC", 
+                                Item=item_data)
 
 def lambda_handler(event, context):
     '''
@@ -98,7 +116,7 @@ print(requests.post('https://h5ctmemjw0.execute-api.us-east-1.amazonaws.com/dev/
     dynamo_data = format_data_dynamodb(data)
     
     
-    table = dynamodb.put_item(TableName="DID_POC", 
+    table = dynamodb.put_item(TableName="DID_POC",
                                 Item=dynamo_data)
 
     req = dynamodb.get_item(TableName="DID_POC", 
@@ -109,12 +127,12 @@ print(requests.post('https://h5ctmemjw0.execute-api.us-east-1.amazonaws.com/dev/
 
     update(data['issuer_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
     update(data['issued_to_hashed_key'],('signed_credentials',data['hashed_key']),'False',dynamodb )
-
+    save_to_main_table(data['hashed_key'],dynamodb)
     print('Assigned Credentials to both.')
 
     #TODO: SEND SNS MESSAGE TO NOTIFY APP
    
-    return response(status=200, body='both done')
+    return response(status=200, body={"Saved to ":'all fields table public'})
 
 
 if __name__ == '__main__':
