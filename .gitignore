@@ -7,3 +7,5 @@ terraform.tfstate.backup
 terraform.tfvars
 lambda.zip
 lib/
+package.json
+package-lock.json
